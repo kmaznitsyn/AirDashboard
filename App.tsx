@@ -7,7 +7,6 @@ import {
   ScrollView,
   ActivityIndicator,
   StyleSheet,
-  SafeAreaView,
   RefreshControl,
   StatusBar,
   Platform,
@@ -15,6 +14,7 @@ import {
   Keyboard,
   Animated,
 } from 'react-native';
+import { SafeAreaProvider, SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import * as Notifications from 'expo-notifications';
 import { ThemeProvider, useTheme }   from './src/context/ThemeContext';
 import { LocaleProvider, useLocale } from './src/context/LocaleContext';
@@ -25,23 +25,28 @@ import WeatherCard  from './src/components/WeatherCard';
 import AQICard      from './src/components/AQICard';
 import UVCard       from './src/components/UVCard';
 import AlertBanner  from './src/components/AlertBanner';
+import { rf, isTablet, MAX_CONTENT_WIDTH } from './src/utils/responsive';
 
 Notifications.setNotificationHandler({
   handleNotification: async () => ({
-    shouldShowAlert: true,
-    shouldPlaySound: false,
-    shouldSetBadge: false,
+    shouldShowAlert:  true,
+    shouldShowBanner: true,
+    shouldShowList:   true,
+    shouldPlaySound:  false,
+    shouldSetBadge:   false,
   }),
 });
 
 // ─── Root ────────────────────────────────────────────────────────────────────
 export default function App() {
   return (
-    <ThemeProvider>
-      <LocaleProvider>
-        <AppContent />
-      </LocaleProvider>
-    </ThemeProvider>
+    <SafeAreaProvider>
+      <ThemeProvider>
+        <LocaleProvider>
+          <AppContent />
+        </LocaleProvider>
+      </ThemeProvider>
+    </SafeAreaProvider>
   );
 }
 
@@ -55,6 +60,7 @@ const LANG_META = {
 function AppContent() {
   const { colors, isDark, toggleTheme } = useTheme();
   const { lang, t, toggleLocale }       = useLocale();
+  const insets                          = useSafeAreaInsets();
 
   const {
     data, loading, error,
@@ -71,6 +77,9 @@ function AppContent() {
 
   const [input, setInput] = useState('');
   const inputRef = useRef<TextInput>(null);
+
+  // Track search row height so dropdown aligns correctly on all screen sizes
+  const [searchRowHeight, setSearchRowHeight] = useState(48);
 
   // Spin animation for theme toggle
   const themeSpin = useRef(new Animated.Value(0)).current;
@@ -117,166 +126,191 @@ function AppContent() {
   const showDropdown = suggestions.length > 0 || suggestionsLoading;
   const current      = LANG_META[lang];
 
+  // Bottom padding: respect gesture bar / home indicator
+  const scrollBottom = Math.max(insets.bottom + 16, 32);
+
   return (
-    <SafeAreaView style={[styles.safe, { backgroundColor: colors.background }]}>
+    <SafeAreaView
+      edges={['top', 'left', 'right']}
+      style={[styles.safe, { backgroundColor: colors.background }]}
+    >
       <StatusBar
         barStyle={isDark ? 'light-content' : 'dark-content'}
         backgroundColor={colors.background}
       />
 
-      {/* ── Header ── */}
-      <View style={[styles.header, { borderBottomColor: colors.divider }]}>
-        <Text style={[styles.headerTitle, { color: colors.text }]}>
-          🌤 {t.appTitle}
-        </Text>
+      {/* Tablet max-width container */}
+      <View style={isTablet ? styles.tabletContainer : styles.phoneContainer}>
 
-        <View style={styles.headerControls}>
-          {/* Language toggle */}
-          <TouchableOpacity
-            onPress={handleToggleLocale}
-            style={[styles.langBtn, { backgroundColor: colors.surface, borderColor: colors.border }]}
-            activeOpacity={0.75}
-          >
-            <Animated.View
-              style={[styles.langBtnInner, { transform: [{ translateX: langSlide }] }]}
+        {/* ── Header ── */}
+        <View style={[styles.header, { borderBottomColor: colors.divider }]}>
+          <Text style={[styles.headerTitle, { color: colors.text }]}>
+            🌤 {t.appTitle}
+          </Text>
+
+          <View style={styles.headerControls}>
+            {/* Language toggle */}
+            <TouchableOpacity
+              onPress={handleToggleLocale}
+              style={[styles.langBtn, { backgroundColor: colors.surface, borderColor: colors.border }]}
+              activeOpacity={0.75}
             >
-              <Text style={styles.langFlag}>{current.flag}</Text>
-              <Text style={[styles.langCode, { color: colors.text }]}>{current.code}</Text>
-            </Animated.View>
-          </TouchableOpacity>
+              <Animated.View
+                style={[styles.langBtnInner, { transform: [{ translateX: langSlide }] }]}
+              >
+                <Text style={styles.langFlag}>{current.flag}</Text>
+                <Text style={[styles.langCode, { color: colors.text }]}>{current.code}</Text>
+              </Animated.View>
+            </TouchableOpacity>
 
-          {/* Theme toggle */}
-          <TouchableOpacity
-            onPress={handleToggleTheme}
-            style={[styles.iconBtn, { backgroundColor: colors.surface, borderColor: colors.border }]}
-            activeOpacity={0.75}
+            {/* Theme toggle */}
+            <TouchableOpacity
+              onPress={handleToggleTheme}
+              style={[styles.iconBtn, { backgroundColor: colors.surface, borderColor: colors.border }]}
+              activeOpacity={0.75}
+            >
+              <Animated.Text style={[styles.iconBtnText, { transform: [{ rotate: themeRotate }] }]}>
+                {isDark ? '☀️' : '🌙'}
+              </Animated.Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+
+        {/* ── Search ── */}
+        <View style={styles.searchWrapper}>
+          <View
+            style={styles.searchRow}
+            onLayout={e => setSearchRowHeight(e.nativeEvent.layout.height)}
           >
-            <Animated.Text style={[styles.iconBtnText, { transform: [{ rotate: themeRotate }] }]}>
-              {isDark ? '☀️' : '🌙'}
-            </Animated.Text>
-          </TouchableOpacity>
-        </View>
-      </View>
+            <TextInput
+              ref={inputRef}
+              style={[styles.input, { backgroundColor: colors.inputBg, color: colors.text }]}
+              placeholder={t.searchPlaceholder}
+              placeholderTextColor={colors.placeholder}
+              value={input}
+              onChangeText={handleChangeText}
+              onSubmitEditing={handleSearch}
+              returnKeyType="search"
+              autoCorrect={false}
+              autoCapitalize="words"
+            />
+            <TouchableOpacity style={styles.btn} onPress={handleSearch} activeOpacity={0.85}>
+              <Text style={styles.btnText}>{t.searchGo}</Text>
+            </TouchableOpacity>
+          </View>
 
-      {/* ── Search ── */}
-      <View style={styles.searchWrapper}>
-        <View style={styles.searchRow}>
-          <TextInput
-            ref={inputRef}
-            style={[styles.input, { backgroundColor: colors.inputBg, color: colors.text }]}
-            placeholder={t.searchPlaceholder}
-            placeholderTextColor={colors.placeholder}
-            value={input}
-            onChangeText={handleChangeText}
-            onSubmitEditing={handleSearch}
-            returnKeyType="search"
-            autoCorrect={false}
-            autoCapitalize="words"
-          />
-          <TouchableOpacity style={styles.btn} onPress={handleSearch} activeOpacity={0.85}>
-            <Text style={styles.btnText}>{t.searchGo}</Text>
-          </TouchableOpacity>
-        </View>
-
-        {/* Autocomplete dropdown */}
-        {showDropdown && (
-          <View style={[styles.dropdown, { backgroundColor: colors.surface }]}>
-            {suggestionsLoading && suggestions.length === 0 ? (
-              <View style={styles.dropdownLoading}>
-                <ActivityIndicator size="small" color="#1976D2" />
-                <Text style={[styles.dropdownLoadingText, { color: colors.textSecondary }]}>
-                  {t.searching}
-                </Text>
-              </View>
-            ) : (
-              <FlatList
-                data={suggestions}
-                keyExtractor={(item, i) => `${item.lat}-${item.lon}-${i}`}
-                keyboardShouldPersistTaps="always"
-                scrollEnabled={false}
-                renderItem={({ item, index }) => (
-                  <TouchableOpacity
-                    style={[
-                      styles.suggestionRow,
-                      index < suggestions.length - 1 && {
-                        borderBottomWidth: 1,
-                        borderBottomColor: colors.divider,
-                      },
-                    ]}
-                    onPress={() => handleSelectSuggestion(item)}
-                    activeOpacity={0.7}
-                  >
-                    <View style={styles.suggestionLeft}>
-                      <Text style={styles.suggestionIcon}>📍</Text>
-                      <View>
-                        <Text style={[styles.suggestionCity, { color: colors.text }]}>
-                          {item.name}
-                        </Text>
-                        {(item.state || item.country) && (
-                          <Text style={[styles.suggestionSub, { color: colors.textSecondary }]}>
-                            {[item.state, item.country].filter(Boolean).join(', ')}
+          {/* Autocomplete dropdown — top positioned dynamically */}
+          {showDropdown && (
+            <View style={[
+              styles.dropdown,
+              { backgroundColor: colors.surface, top: searchRowHeight + 16 },
+            ]}>
+              {suggestionsLoading && suggestions.length === 0 ? (
+                <View style={styles.dropdownLoading}>
+                  <ActivityIndicator size="small" color="#1976D2" />
+                  <Text style={[styles.dropdownLoadingText, { color: colors.textSecondary }]}>
+                    {t.searching}
+                  </Text>
+                </View>
+              ) : (
+                <FlatList
+                  data={suggestions}
+                  keyExtractor={(item, i) => `${item.lat}-${item.lon}-${i}`}
+                  keyboardShouldPersistTaps="always"
+                  scrollEnabled={false}
+                  renderItem={({ item, index }) => (
+                    <TouchableOpacity
+                      style={[
+                        styles.suggestionRow,
+                        index < suggestions.length - 1 && {
+                          borderBottomWidth: StyleSheet.hairlineWidth,
+                          borderBottomColor: colors.divider,
+                        },
+                      ]}
+                      onPress={() => handleSelectSuggestion(item)}
+                      activeOpacity={0.7}
+                    >
+                      <View style={styles.suggestionLeft}>
+                        <Text style={styles.suggestionIcon}>📍</Text>
+                        <View style={styles.suggestionTextBlock}>
+                          <Text
+                            style={[styles.suggestionCity, { color: colors.text }]}
+                            numberOfLines={1}
+                            ellipsizeMode="tail"
+                          >
+                            {item.name}
                           </Text>
-                        )}
+                          {(item.state || item.country) && (
+                            <Text
+                              style={[styles.suggestionSub, { color: colors.textSecondary }]}
+                              numberOfLines={1}
+                              ellipsizeMode="tail"
+                            >
+                              {[item.state, item.country].filter(Boolean).join(', ')}
+                            </Text>
+                          )}
+                        </View>
                       </View>
-                    </View>
-                    <Text style={[styles.suggestionArrow, { color: colors.border }]}>›</Text>
-                  </TouchableOpacity>
-                )}
-              />
-            )}
+                      <Text style={[styles.suggestionArrow, { color: colors.border }]}>›</Text>
+                    </TouchableOpacity>
+                  )}
+                />
+              )}
+            </View>
+          )}
+        </View>
+
+        {/* ── Loading ── */}
+        {loading && !data && (
+          <View style={styles.centered}>
+            <ActivityIndicator size="large" color="#1976D2" />
+            <Text style={[styles.stateText, { color: colors.textSecondary }]}>
+              {t.fetchingConditions}
+            </Text>
           </View>
         )}
-      </View>
 
-      {/* ── Loading ── */}
-      {loading && !data && (
-        <View style={styles.centered}>
-          <ActivityIndicator size="large" color="#1976D2" />
-          <Text style={[styles.stateText, { color: colors.textSecondary }]}>
-            {t.fetchingConditions}
-          </Text>
-        </View>
-      )}
+        {/* ── Error ── */}
+        {error && !loading && (
+          <View style={styles.errorContainer}>
+            <Text style={styles.errorIcon}>⚠️</Text>
+            <Text style={styles.errorText}>{error}</Text>
+          </View>
+        )}
 
-      {/* ── Error ── */}
-      {error && !loading && (
-        <View style={styles.errorContainer}>
-          <Text style={styles.errorIcon}>⚠️</Text>
-          <Text style={styles.errorText}>{error}</Text>
-        </View>
-      )}
-
-      {/* ── Dashboard ── */}
-      {data && (
-        <ScrollView
-          contentContainerStyle={styles.scroll}
-          showsVerticalScrollIndicator={false}
-          keyboardShouldPersistTaps="handled"
-          onScrollBeginDrag={() => { clearSuggestions(); Keyboard.dismiss(); }}
-          refreshControl={
-            <RefreshControl
-              refreshing={loading}
-              onRefresh={refresh}
-              tintColor="#1976D2"
-              colors={['#1976D2']}
+        {/* ── Dashboard ── */}
+        {data && (
+          <ScrollView
+            contentContainerStyle={[styles.scroll, { paddingBottom: scrollBottom }]}
+            showsVerticalScrollIndicator={false}
+            keyboardShouldPersistTaps="handled"
+            onScrollBeginDrag={() => { clearSuggestions(); Keyboard.dismiss(); }}
+            refreshControl={
+              <RefreshControl
+                refreshing={loading}
+                onRefresh={refresh}
+                tintColor="#1976D2"
+                colors={['#1976D2']}
+              />
+            }
+          >
+            <AlertBanner airQuality={data.airQuality} uv={data.uv} />
+            <WeatherCard w={data.weather} />
+            <AQICard
+              aq={data.airQuality}
+              notifyEnabled={notifyPoorAQI}
+              onToggleNotify={toggleNotifyPoorAQI}
             />
-          }
-        >
-          <AlertBanner airQuality={data.airQuality} uv={data.uv} />
-          <WeatherCard w={data.weather} />
-          <AQICard
-            aq={data.airQuality}
-            notifyEnabled={notifyPoorAQI}
-            onToggleNotify={toggleNotifyPoorAQI}
-          />
-          <UVCard
-            uv={data.uv}
-            notifyEnabled={notifyHighUV}
-            onToggleNotify={toggleNotifyHighUV}
-          />
-          <Text style={[styles.footer, { color: colors.textMuted }]}>{t.footer}</Text>
-        </ScrollView>
-      )}
+            <UVCard
+              uv={data.uv}
+              notifyEnabled={notifyHighUV}
+              onToggleNotify={toggleNotifyHighUV}
+            />
+            <Text style={[styles.footer, { color: colors.textMuted }]}>{t.footer}</Text>
+          </ScrollView>
+        )}
+
+      </View>
     </SafeAreaView>
   );
 }
@@ -285,7 +319,17 @@ function AppContent() {
 const styles = StyleSheet.create({
   safe: {
     flex: 1,
-    paddingTop: Platform.OS === 'android' ? StatusBar.currentHeight : 0,
+  },
+
+  // Tablet / phone content containers
+  phoneContainer: {
+    flex: 1,
+  },
+  tabletContainer: {
+    flex: 1,
+    maxWidth: MAX_CONTENT_WIDTH,
+    width: '100%',
+    alignSelf: 'center',
   },
 
   // Header
@@ -295,10 +339,10 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     paddingHorizontal: 16,
     paddingVertical: 12,
-    borderBottomWidth: 1,
+    borderBottomWidth: StyleSheet.hairlineWidth,
   },
   headerTitle: {
-    fontSize: 20,
+    fontSize: rf(20),
     fontWeight: '800',
     flex: 1,
     marginRight: 8,
@@ -333,7 +377,7 @@ const styles = StyleSheet.create({
     lineHeight: 20,
   },
   langCode: {
-    fontSize: 12,
+    fontSize: rf(12),
     fontWeight: '700',
     letterSpacing: 0.5,
   },
@@ -372,7 +416,7 @@ const styles = StyleSheet.create({
     borderRadius: 10,
     paddingHorizontal: 14,
     paddingVertical: 12,
-    fontSize: 15,
+    fontSize: rf(15),
     elevation: 2,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 1 },
@@ -389,13 +433,12 @@ const styles = StyleSheet.create({
   btnText: {
     color: '#fff',
     fontWeight: '700',
-    fontSize: 15,
+    fontSize: rf(15),
   },
 
   // Dropdown
   dropdown: {
     position: 'absolute',
-    top: 64,
     left: 16,
     right: 16,
     borderRadius: 12,
@@ -413,7 +456,7 @@ const styles = StyleSheet.create({
     gap: 10,
     padding: 14,
   },
-  dropdownLoadingText: { fontSize: 14 },
+  dropdownLoadingText: { fontSize: rf(14) },
   suggestionRow: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -421,19 +464,20 @@ const styles = StyleSheet.create({
     paddingVertical: 12,
     paddingHorizontal: 14,
   },
-  suggestionLeft:  { flexDirection: 'row', alignItems: 'center', gap: 10, flex: 1 },
-  suggestionIcon:  { fontSize: 16 },
-  suggestionCity:  { fontSize: 15, fontWeight: '600' },
-  suggestionSub:   { fontSize: 12, marginTop: 1 },
-  suggestionArrow: { fontSize: 20, fontWeight: '300' },
+  suggestionLeft:      { flexDirection: 'row', alignItems: 'center', gap: 10, flex: 1, minWidth: 0 },
+  suggestionTextBlock: { flex: 1, minWidth: 0 },
+  suggestionIcon:      { fontSize: 16 },
+  suggestionCity:      { fontSize: rf(15), fontWeight: '600' },
+  suggestionSub:       { fontSize: rf(12), marginTop: 1 },
+  suggestionArrow:     { fontSize: 20, fontWeight: '300', flexShrink: 0 },
 
   // States
   centered:       { flex: 1, justifyContent: 'center', alignItems: 'center', gap: 12 },
-  stateText:      { fontSize: 15 },
+  stateText:      { fontSize: rf(15) },
   errorContainer: { flex: 1, justifyContent: 'center', alignItems: 'center', paddingHorizontal: 32, gap: 12 },
-  errorIcon:      { fontSize: 40 },
-  errorText:      { fontSize: 15, color: '#c00', textAlign: 'center', lineHeight: 22 },
+  errorIcon:      { fontSize: rf(40) },
+  errorText:      { fontSize: rf(15), color: '#c00', textAlign: 'center', lineHeight: rf(22) },
 
-  scroll:  { padding: 16, gap: 12, paddingBottom: 32 },
-  footer:  { fontSize: 11, textAlign: 'center', marginTop: 8, lineHeight: 18 },
+  scroll:  { padding: 16, gap: 12 },
+  footer:  { fontSize: rf(11), textAlign: 'center', marginTop: 8, lineHeight: rf(18) },
 });

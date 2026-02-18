@@ -4,6 +4,7 @@ import { AirQualityData } from '../types';
 import { AQI_COLORS, AQI_LEVEL_KEYS } from '../constants/levels';
 import { useTheme } from '../context/ThemeContext';
 import { useLocale } from '../context/LocaleContext';
+import { rf } from '../utils/responsive';
 
 interface Props {
   aq: AirQualityData;
@@ -89,7 +90,7 @@ function PollutantCell({
 }) {
   return (
     <View style={styles.pollutantCell}>
-      <Text style={[styles.pollutantValue, { color: colors.text }]}>{value}</Text>
+      <Text style={[styles.pollutantValue, { color: colors.text }]} numberOfLines={1}>{value}</Text>
       <Text style={[styles.pollutantUnit,  { color: colors.textSecondary }]}>{unit}</Text>
       <Text style={[styles.pollutantLabel, { color: colors.textSecondary }]}>{label}</Text>
     </View>
@@ -97,24 +98,24 @@ function PollutantCell({
 }
 
 const styles = StyleSheet.create({
-  card:             { borderRadius: 16, padding: 20, gap: 10, elevation: 2, shadowColor: '#000', shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.08, shadowRadius: 4 },
+  card:             { borderRadius: 16, padding: rf(20), gap: 10, elevation: 2, shadowColor: '#000', shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.08, shadowRadius: 4 },
   header:           { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
-  title:            { fontSize: 16, fontWeight: '700' },
+  title:            { fontSize: rf(16), fontWeight: '700' },
   badge:            { paddingHorizontal: 12, paddingVertical: 4, borderRadius: 20 },
-  badgeText:        { color: '#fff', fontWeight: '700', fontSize: 13 },
-  aqiNumber:        { fontSize: 36, fontWeight: '800', lineHeight: 42 },
-  advice:           { fontSize: 14, lineHeight: 20 },
-  pollutantsRow:    { flexDirection: 'row', borderRadius: 12, padding: 14, marginTop: 4 },
-  pollutantDivider: { width: 1, marginHorizontal: 6 },
+  badgeText:        { color: '#fff', fontWeight: '700', fontSize: rf(13) },
+  aqiNumber:        { fontSize: rf(36), fontWeight: '800', lineHeight: rf(42) },
+  advice:           { fontSize: rf(14), lineHeight: rf(20) },
+  pollutantsRow:    { flexDirection: 'row', borderRadius: 12, padding: rf(14), marginTop: 4 },
+  pollutantDivider: { width: StyleSheet.hairlineWidth, marginHorizontal: 6 },
   pollutantCell:    { flex: 1, alignItems: 'center', gap: 2 },
-  pollutantValue:   { fontSize: 16, fontWeight: '700' },
-  pollutantUnit:    { fontSize: 10 },
-  pollutantLabel:   { fontSize: 12, fontWeight: '600', marginTop: 2 },
-  divider:          { height: 1, marginVertical: 2 },
+  pollutantValue:   { fontSize: rf(16), fontWeight: '700' },
+  pollutantUnit:    { fontSize: rf(10) },
+  pollutantLabel:   { fontSize: rf(12), fontWeight: '600', marginTop: 2 },
+  divider:          { height: StyleSheet.hairlineWidth, marginVertical: 2 },
   toggleRow:        { flexDirection: 'row', alignItems: 'center', gap: 8 },
   toggleIcon:       { fontSize: 17 },
-  toggleLabel:      { flex: 1, fontSize: 14, fontWeight: '600' },
+  toggleLabel:      { flex: 1, fontSize: rf(14), fontWeight: '600' },
   infoBtn:          { fontSize: 17 },
-  tooltip:          { borderRadius: 10, padding: 12, borderLeftWidth: 3 },
-  tooltipText:      { fontSize: 13, lineHeight: 19 },
+  tooltip:          { borderRadius: 10, padding: rf(12), borderLeftWidth: 3 },
+  tooltipText:      { fontSize: rf(13), lineHeight: rf(19) },
 });

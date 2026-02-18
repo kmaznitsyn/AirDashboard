@@ -1,6 +1,7 @@
 import { View, Text, StyleSheet } from 'react-native';
 import { AirQualityData, UVData } from '../types';
 import { useLocale } from '../context/LocaleContext';
+import { rf } from '../utils/responsive';
 
 interface Props {
   airQuality: AirQualityData;
@@ -19,13 +20,15 @@ export default function AlertBanner({ airQuality, uv }: Props) {
   return (
     <View style={styles.banner}>
       {alerts.map((alert, i) => (
-        <Text key={i} style={styles.text}>{alert}</Text>
+        <Text key={i} style={styles.text} numberOfLines={2} ellipsizeMode="tail">
+          {alert}
+        </Text>
       ))}
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  banner: { backgroundColor: '#FF6D00', borderRadius: 12, padding: 14, gap: 6 },
-  text:   { color: '#fff', fontWeight: '600', fontSize: 14, lineHeight: 20 },
+  banner: { backgroundColor: '#FF6D00', borderRadius: 12, padding: rf(14), gap: 6 },
+  text:   { color: '#fff', fontWeight: '600', fontSize: rf(14), lineHeight: rf(20) },
 });

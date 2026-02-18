@@ -4,6 +4,7 @@ import { UVData } from '../types';
 import { getUVColor, getUVLevelKey } from '../constants/levels';
 import { useTheme } from '../context/ThemeContext';
 import { useLocale } from '../context/LocaleContext';
+import { rf } from '../utils/responsive';
 
 interface Props {
   uv: UVData;
@@ -15,9 +16,9 @@ export default function UVCard({ uv, notifyEnabled, onToggleNotify }: Props) {
   const { colors, isDark } = useTheme();
   const { t }              = useLocale();
 
-  const color      = getUVColor(uv.uvMax);
-  const levelKey   = getUVLevelKey(uv.uvMax);
-  const level      = t.uvLevels[levelKey];
+  const color       = getUVColor(uv.uvMax);
+  const levelKey    = getUVLevelKey(uv.uvMax);
+  const level       = t.uvLevels[levelKey];
   const fillPercent = Math.min(uv.uvMax / 12, 1);
 
   const [tooltipVisible, setTooltipVisible] = useState(false);
@@ -80,20 +81,20 @@ export default function UVCard({ uv, notifyEnabled, onToggleNotify }: Props) {
 }
 
 const styles = StyleSheet.create({
-  card:        { borderRadius: 16, padding: 20, gap: 10, elevation: 2, shadowColor: '#000', shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.08, shadowRadius: 4 },
+  card:        { borderRadius: 16, padding: rf(20), gap: 10, elevation: 2, shadowColor: '#000', shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.08, shadowRadius: 4 },
   header:      { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
-  title:       { fontSize: 16, fontWeight: '700' },
+  title:       { fontSize: rf(16), fontWeight: '700' },
   badge:       { paddingHorizontal: 12, paddingVertical: 4, borderRadius: 20 },
-  badgeText:   { color: '#fff', fontWeight: '700', fontSize: 13 },
-  value:       { fontSize: 48, fontWeight: '800', lineHeight: 54 },
+  badgeText:   { color: '#fff', fontWeight: '700', fontSize: rf(13) },
+  value:       { fontSize: rf(48), fontWeight: '800', lineHeight: rf(54) },
   barTrack:    { height: 8, borderRadius: 4, overflow: 'hidden' },
   barFill:     { height: '100%', borderRadius: 4 },
-  hint:        { fontSize: 13 },
-  divider:     { height: 1, marginVertical: 2 },
+  hint:        { fontSize: rf(13) },
+  divider:     { height: StyleSheet.hairlineWidth, marginVertical: 2 },
   toggleRow:   { flexDirection: 'row', alignItems: 'center', gap: 8 },
   toggleIcon:  { fontSize: 17 },
-  toggleLabel: { flex: 1, fontSize: 14, fontWeight: '600' },
+  toggleLabel: { flex: 1, fontSize: rf(14), fontWeight: '600' },
   infoBtn:     { fontSize: 17 },
-  tooltip:     { borderRadius: 10, padding: 12, borderLeftWidth: 3 },
-  tooltipText: { fontSize: 13, lineHeight: 19 },
+  tooltip:     { borderRadius: 10, padding: rf(12), borderLeftWidth: 3 },
+  tooltipText: { fontSize: rf(13), lineHeight: rf(19) },
 });
